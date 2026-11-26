@@ -1,10 +1,31 @@
-// Pump.fun Paper Sprint bot — original sniper strategy, written from scratch.
+// Pump.fun Paper Sprint bot — submitted entry (26 Nov 2026).
+// v5: the best variant found by sweeping the kit's local grader.
+// It is v4's original sniper logic with two tunables changed:
+// take-profit +2% (was +12%) and stop-loss -20% (was -10%).
+// Everything else — entry filter, 0.01 SOL probes, creator-sell exit,
+// max hold 2000 slots, probe-tier valve — is v4 unchanged.
+//
+// Why not the "bigger" v5 redesign (0.03 SOL size, trailing exit, stricter
+// entry, SL -7%)? It was built and swept too, and it graded far worse
+// (-0.412 SOL vs v4's -0.048 SOL): the trailing exit gives back the coins
+// that spike +12-25% and then fall, the "reserves still growing" filter
+// buys at the top of a momentum spike, and 0.03 SOL size triples the
+// per-trade losses. The sweep covered 25 variants; the +2%/-20% pair was
+// the least-bad of all of them, and the kit's own 80-combo pilot grid
+// found nothing positive either (best -0.0674 SOL).
+//
+// v5 dev result: PnL -19,744,088 lamports (-0.01974 SOL), return -0.20%,
+// max drawdown 0.28%, fills 216, distinct mints 108, win rate 38.9%.
+// Stress (6 copies): median -0.0475 SOL, p10 -0.0727, p90 -0.0097, all 6
+// copies negative. NOT prize-eligible (needs PnL > 0 SOL) — the dev window
+// contains no positive-expectancy sniper configuration at these fee levels,
+// and the tuned numbers are the least-bad, not a winning edge.
 //
 // Idea: pump.fun launches are mostly noise. A launch is only worth a tiny
 // probe when its own creator puts real money in (dev buy >= 3 SOL across the
 // first five trades) and at least four other wallets buy with them, with the
 // creator never selling. Every probe is 0.01 SOL, so a loser costs almost
-// nothing. A probe is sold whole as soon as it is up 12%, down 10%, the
+// nothing. A probe is sold whole as soon as it is up 2%, down 20%, the
 // creator sells, or it has sat for 2000 slots. No pyramiding, no holding for
 // a miracle: the edge is many cheap, fast, filtered shots, not one big bet.
 //
@@ -25,8 +46,8 @@ import { LAMPORTS_PER_SOL, runBot, type Batch, type BotState, type OrderInput } 
 
 // --- tunables (lamports unless noted) ---------------------------------------
 const FIRST_BUY = LAMPORTS_PER_SOL / 100n; // 0.01 SOL probe
-const TAKE_PROFIT = 1.12; // sell the whole probe when its value is +12% over cost
-const STOP_LOSS = 0.9; // sell the whole probe when its value is -10% under cost
+const TAKE_PROFIT = 1.02; // sell the whole probe when its value is +2% over cost
+const STOP_LOSS = 0.80; // sell the whole probe when its value is -20% under cost
 const MAX_HOLD_SLOTS = 2000; // sell whatever is left after this many slots
 const ENTRY_AGE_SLOTS = 500; // only consider a coin in its first 500 slots
 const MIN_DEV_BUY = (LAMPORTS_PER_SOL * 3n); // creator buys >= 3 SOL in first 5 trades
